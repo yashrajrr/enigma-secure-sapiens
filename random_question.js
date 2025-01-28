@@ -19,9 +19,10 @@ function shuffleOptions(options) {
     return options;
 }
 
-// Function to fetch a random question
-async function fetchRandomQuestion() {
-    const apiUrl = 'https://opentdb.com/api.php?amount=1&type=multiple';
+// Function to fetch an educational question (General Knowledge, Science, History)
+async function fetchEducationalQuestion() {
+    const apiUrl = 'https://opentdb.com/api.php?amount=1&type=multiple&category=22'; // Category 22 is for General Knowledge
+
     try {
         const response = await axios.get(apiUrl);
         const data = response.data.results[0];
@@ -42,24 +43,32 @@ async function fetchRandomQuestion() {
     }
 }
 
-// Function to keep trying until a question is fetched
-async function getQuestionUntilSuccess(res) {
+// Function to keep retrying until successful fetch
+async function getValidQuestion() {
     let questionData = null;
+
+    // Keep trying to fetch a valid question
     while (!questionData) {
-        questionData = await fetchRandomQuestion();
-        // If question fetch fails, it will retry
+        questionData = await fetchEducationalQuestion();
     }
-    res.json(questionData); // Send the data once it's successfully fetched
+
+    return questionData;
 }
 
 // Root route
-app.get('/', (req, res) => {
-    getQuestionUntilSuccess(res); // Start the retry process
+app.get('/', async (req, res) => {
+    const questionData = await getValidQuestion();
+
+    // Send the valid question data
+    res.json(questionData);
 });
 
-// Route to fetch random questions
-app.get('/random-question', (req, res) => {
-    getQuestionUntilSuccess(res); // Start the retry process
+// Route to fetch random educational questions
+app.get('/random-question', async (req, res) => {
+    const questionData = await getValidQuestion();
+
+    // Send the valid question data
+    res.json(questionData);
 });
 
 // Start the server
