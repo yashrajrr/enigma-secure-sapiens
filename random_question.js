@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const he = require('he'); // Import the HTML entity decoder
 
 const app = express();
 const PORT = 3000;
@@ -18,27 +19,47 @@ function shuffleOptions(options) {
     return options;
 }
 
-// Route to fetch random questions
-app.get('/random-question', async (req, res) => {
+// Function to fetch a random question
+async function fetchRandomQuestion() {
+    const apiUrl = 'https://opentdb.com/api.php?amount=1&type=multiple';
     try {
-        // Fetch a random question from Open Trivia API
-        const apiUrl = 'https://opentdb.com/api.php?amount=1&type=multiple';
         const response = await axios.get(apiUrl);
         const data = response.data.results[0];
 
-        // Structure the question and options
-        const question = data.question;
-        const correctAnswer = data.correct_answer;
-        const incorrectAnswers = data.incorrect_answers;
+        // Decode the question and answers
+        const question = he.decode(data.question);
+        const correctAnswer = he.decode(data.correct_answer);
+        const incorrectAnswers = data.incorrect_answers.map((answer) => he.decode(answer));
         const allOptions = shuffleOptions([correctAnswer, ...incorrectAnswers]);
 
-        res.json({
+        return {
             question: question,
             options: allOptions,
-        });
+            correctAnswer: correctAnswer
+        };
     } catch (error) {
-        res.status(500).json({ message: 'Failed to fetch question', error: error.message });
+        return null; // Return null if fetch fails
     }
+}
+
+// Function to keep trying until a question is fetched
+async function getQuestionUntilSuccess(res) {
+    let questionData = null;
+    while (!questionData) {
+        questionData = await fetchRandomQuestion();
+        // If question fetch fails, it will retry
+    }
+    res.json(questionData); // Send the data once it's successfully fetched
+}
+
+// Root route
+app.get('/', (req, res) => {
+    getQuestionUntilSuccess(res); // Start the retry process
+});
+
+// Route to fetch random questions
+app.get('/random-question', (req, res) => {
+    getQuestionUntilSuccess(res); // Start the retry process
 });
 
 // Start the server
